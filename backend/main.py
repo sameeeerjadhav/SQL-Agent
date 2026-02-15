@@ -7,7 +7,10 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
-from .agent import run_sql_agent
+try:
+    from .agent import run_sql_agent
+except ImportError:
+    from agent import run_sql_agent
 
 # 1. Initialize the FastAPI app
 app = FastAPI(title="AI SQL Workbench API")
@@ -282,7 +285,10 @@ async def ask_ai(request: QueryRequest):
 @app.post("/execute")
 async def execute_sql(request: ExecuteRequest):
     print(f"DEBUG: /execute called. URI present: {bool(request.connection_uri)}")
-    from .agent import execute_sql_commands
+    try:
+        from .agent import execute_sql_commands
+    except ImportError:
+        from agent import execute_sql_commands
     # Determine DB Source
     if request.connection_uri:
          db_target = request.connection_uri
