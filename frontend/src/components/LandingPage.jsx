@@ -64,8 +64,8 @@ export const LandingPage = () => {
             {/* Navbar */}
             <nav className="relative z-50 flex items-center justify-between px-6 py-6 md:px-12 max-w-7xl mx-auto">
                 <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-zinc-900 dark:text-white">
-                    <div className="w-8 h-8 bg-zinc-900 dark:bg-white rounded-lg flex items-center justify-center">
-                        <MessageSquare size={18} className="text-white dark:text-black fill-current" />
+                    <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
+                        <img src="/logo.png" alt="Datalk Logo" className="w-full h-full object-cover" />
                     </div>
                     <span>Datalk</span>
                 </div>

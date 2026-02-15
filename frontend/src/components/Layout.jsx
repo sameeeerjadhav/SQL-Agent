@@ -91,8 +91,8 @@ export const Layout = ({ children, activeTab, onTabChange }) => {
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-2.5"
               >
-                <div className="w-6 h-6 rounded bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center">
-                  <MessageSquare size={14} className="text-white dark:text-zinc-950 fill-current" />
+                <div className="w-6 h-6 rounded overflow-hidden flex items-center justify-center">
+                  <img src="/logo.png" alt="Datalk" className="w-full h-full object-cover" />
                 </div>
                 <span className="font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
                   Datalk

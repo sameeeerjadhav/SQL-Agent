@@ -20,8 +20,8 @@ const AuthLayout = ({ children, title, subtitle }) => (
         >
             <div className="mb-8 text-center">
                 <Link to="/" className="inline-flex items-center gap-2 font-bold text-2xl tracking-tight text-zinc-900 dark:text-white mb-6 hover:opacity-80 transition-opacity">
-                    <div className="w-10 h-10 bg-zinc-900 dark:bg-white rounded-xl flex items-center justify-center shadow-lg shadow-zinc-900/10 dark:shadow-white/10">
-                        <MessageSquare size={20} className="text-white dark:text-black fill-current" />
+                    <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg shadow-zinc-900/10 dark:shadow-white/10">
+                        <img src="/logo.png" alt="Datalk" className="w-full h-full object-cover" />
                     </div>
                     <span>Datalk</span>
                 </Link>
