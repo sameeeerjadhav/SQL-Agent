@@ -282,7 +282,7 @@ export const LandingPage = () => {
                 </div>
             </section>
 
-            <footer className="py-12 text-center text-zinc-500 dark:text-zinc-600 text-sm">
+            <footer className="py-12 text-center text-zinc-900 dark:text-zinc-300 text-sm font-medium">
                 <p>© 2026 Datalk. Built for humans. <span className="mx-2">•</span> Made by Sameer Jadhav</p>
             </footer>
         </div>
