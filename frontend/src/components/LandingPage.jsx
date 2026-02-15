@@ -79,13 +79,13 @@ export const LandingPage = () => {
                     </button>
                     <button
                         onClick={() => navigate('/login')}
-                        className="px-5 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                        className="px-3 md:px-5 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
                     >
                         Login
                     </button>
                     <button
                         onClick={() => navigate('/register')}
-                        className="px-5 py-2 text-sm font-medium bg-zinc-900 dark:bg-white text-white dark:text-black rounded-full hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors"
+                        className="px-3 md:px-5 py-2 text-sm font-medium bg-zinc-900 dark:bg-white text-white dark:text-black rounded-full hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors"
                     >
                         Get Started
                     </button>

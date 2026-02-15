@@ -166,7 +166,7 @@ export const DataVisualizer = ({ data, type = 'table', sql, initialConfig, conne
     };
 
     const ChartContainer = ({ children }) => (
-        <div className="h-[400px] w-full p-4">
+        <div className="h-[300px] md:h-[400px] w-full p-4">
             <ResponsiveContainer width="100%" height="100%">
                 {children}
             </ResponsiveContainer>
@@ -353,7 +353,7 @@ export const DataVisualizer = ({ data, type = 'table', sql, initialConfig, conne
             {/* Visualization Body */}
             <div ref={chartRef} className={clsx(
                 "flex-1 bg-white dark:bg-zinc-950 relative",
-                viewMode !== 'table' ? "min-h-[300px]" : "min-h-0"
+                viewMode !== 'table' ? "min-h-[250px] md:min-h-[300px]" : "min-h-0"
             )}>
                 {viewMode === 'table' && (
                     <div className="w-full overflow-auto max-h-[500px] scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
