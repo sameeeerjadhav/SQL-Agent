@@ -145,9 +145,19 @@ export const Workspace = () => {
             // Handle CustomEvent details
             const detail = e.detail;
             console.log("DB Connection Changed Event:", detail);
+            // DEBUG: Alert to confirm event data
+            // alert(`DB Event Received: ${detail ? detail.uri : 'NULL'}`);
+
             const newUri = detail ? detail.uri : null;
+            if (detail && !newUri) {
+                console.error("DB Event has detail but no URI!", detail);
+            }
 
             setConnectionUri(newUri);
+
+            // Explicitly fetch schema with the new URI immediately
+            console.log("Immediate Schema Fetch triggered for:", newUri);
+            fetchSchema(newUri);
 
             if (detail) {
                 // It's a specific DB Connection
