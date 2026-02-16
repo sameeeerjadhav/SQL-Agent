@@ -4,6 +4,7 @@ import { DataVisualizer } from './DataVisualizer';
 import { Trash2, RefreshCw, LayoutDashboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import toast from 'react-hot-toast';
 
 export const Dashboard = () => {
     const [widgets, setWidgets] = useState([]);
@@ -63,9 +64,11 @@ export const Dashboard = () => {
                         ? { ...w, data: dataset.data, lastUpdated: new Date().toISOString() }
                         : w
                 ));
+                toast.success('Widget data refreshed');
             }
         } catch (error) {
             console.error(`Failed to refresh widget ${widget.id}`, error);
+            toast.error('Failed to refresh widget data');
         } finally {
             setLoading(prev => ({ ...prev, [widget.id]: false }));
         }
@@ -75,6 +78,7 @@ export const Dashboard = () => {
         const updated = widgets.filter(w => w.id !== id);
         setWidgets(updated);
         localStorage.setItem('pinned_widgets', JSON.stringify(updated));
+        toast.success('Widget removed from dashboard');
     };
 
     if (filteredWidgets.length === 0) {

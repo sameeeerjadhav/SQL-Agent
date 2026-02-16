@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, ArrowLeft, MessageSquare } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const AuthLayout = ({ children, title, subtitle }) => (
     <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-white flex items-center justify-center p-6 relative overflow-hidden font-sans selection:bg-zinc-900/10 dark:selection:bg-white/20">
@@ -51,10 +52,13 @@ export const LoginPage = () => {
             if (res.data.status === 'success') {
                 localStorage.setItem('user_token', res.data.token);
                 localStorage.setItem('user_info', JSON.stringify(res.data.user));
+                toast.success('Welcome back!');
                 navigate('/workspace');
             }
         } catch (err) {
-            setError(err.response?.data?.detail || 'Login failed');
+            const msg = err.response?.data?.detail || 'Login failed';
+            setError(msg);
+            toast.error(msg);
         }
         setLoading(false);
     };
@@ -122,10 +126,13 @@ export const RegisterPage = () => {
         try {
             const res = await axios.post('http://127.0.0.1:8000/auth/register', formData);
             if (res.data.status === 'success') {
+                toast.success('Account created successfully!');
                 navigate('/login');
             }
         } catch (err) {
-            setError(err.response?.data?.detail || 'Registration failed');
+            const msg = err.response?.data?.detail || 'Registration failed';
+            setError(msg);
+            toast.error(msg);
         }
         setLoading(false);
     };

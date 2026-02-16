@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, User, Sparkles, Loader2, Copy, Check, Plus, MessageSquare, Trash2, Edit2, Menu, X, MoreHorizontal, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import clsx from 'clsx';
 import { DataVisualizer } from './DataVisualizer';
+import toast from 'react-hot-toast';
 
 export const ChatInterface = ({
     messages,
@@ -61,6 +62,7 @@ export const ChatInterface = ({
     const copyToClipboard = (text, id) => {
         navigator.clipboard.writeText(text);
         setCopiedId(id);
+        toast.success('SQL copied to clipboard');
         setTimeout(() => setCopiedId(null), 2000);
     };
 

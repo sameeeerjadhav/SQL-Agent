@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Layout } from './components/Layout';
 import { ChatInterface } from './components/ChatInterface';
 import { Dashboard } from './components/Dashboard';
@@ -230,9 +231,11 @@ export const Workspace = () => {
                     fetchSchema();
                 }
             } else {
+                const errorMsg = aiResponse.error_message || 'Unknown error occurred';
+                toast.error(errorMsg);
                 setMessages(prev => [...prev, {
                     role: 'assistant',
-                    content: `Error: ${aiResponse.error_message || 'Unknown error occurred'}`,
+                    content: `Error: ${errorMsg}`,
                     sql: aiResponse.sql
                 }]);
 
@@ -247,6 +250,7 @@ export const Workspace = () => {
                 }
             }
         } catch (err) {
+            toast.error("Network Error: Could not reach the backend.");
             setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: "Network Error: Could not reach the backend."
@@ -291,6 +295,7 @@ export const Workspace = () => {
             });
 
             if (res.data.status === 'success') {
+                toast.success('SQL Executed Successfully');
                 setMessages(prev => [...prev, {
                     role: 'assistant',
                     content: "✅ Execution confirmed. Here are the results:",
@@ -299,6 +304,7 @@ export const Workspace = () => {
                 }]);
                 fetchSchema();
             } else {
+                toast.error(`Execution Failed: ${res.data.error_message}`);
                 setMessages(prev => [...prev, {
                     role: 'assistant',
                     content: `❌ Execution Failed: ${res.data.error_message}`,
@@ -307,6 +313,7 @@ export const Workspace = () => {
             }
         } catch (err) {
             console.error(err);
+            toast.error('Network Error during execution');
             setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: "❌ Network Error during execution."

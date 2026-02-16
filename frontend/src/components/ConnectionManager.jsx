@@ -4,6 +4,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { API_BASE_URL } from '../config';
+import toast from 'react-hot-toast';
 
 export const ConnectionManager = ({ isOpen, onClose, onConnectionChanged }) => {
     const [config, setConfig] = useState({
@@ -64,10 +65,14 @@ export const ConnectionManager = ({ isOpen, onClose, onConnectionChanged }) => {
             }
 
             setStatus('success');
-            setMsg('Connection successful!');
+            const successMsg = 'Connection successful!';
+            setMsg(successMsg);
+            toast.success(successMsg);
         } catch (err) {
             setStatus('error');
-            setMsg(err.response?.data?.error || err.message || 'Connection failed');
+            const errorMsg = err.response?.data?.error || err.message || 'Connection failed';
+            setMsg(errorMsg);
+            toast.error(errorMsg);
         }
     };
 
@@ -77,6 +82,7 @@ export const ConnectionManager = ({ isOpen, onClose, onConnectionChanged }) => {
         localStorage.setItem('db_connection_config', JSON.stringify(config));
         setActiveUri(uri);
         onConnectionChanged?.(uri);
+        toast.success('Database connection saved!');
         onClose();
     };
 
@@ -85,6 +91,7 @@ export const ConnectionManager = ({ isOpen, onClose, onConnectionChanged }) => {
         // We might keep the config for future convenience
         setActiveUri(null);
         onConnectionChanged?.(null);
+        toast.success('Disconnected from database');
         onClose();
     };
 
