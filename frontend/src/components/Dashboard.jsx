@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DataVisualizer } from './DataVisualizer';
-import { Trash2, RefreshCw, LayoutDashboard } from 'lucide-react';
+import { Trash2, RefreshCw, LayoutDashboard, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../config';
 
 export const Dashboard = () => {
     const [widgets, setWidgets] = useState([]);
@@ -38,13 +39,8 @@ export const Dashboard = () => {
 
     // Filter widgets based on current connection
     const filteredWidgets = widgets.filter(w => {
-        // Debugging
-        // console.log("Filtering Widget:", w.id, "Widget URI:", w.connectionUri, "Current URI:", currentConnectionUri);
-
-        // Normalize null/undefined to empty string for comparison
         const widgetUri = w.connectionUri || "";
         const currentUri = currentConnectionUri || "";
-
         return widgetUri === currentUri;
     });
 
@@ -53,7 +49,7 @@ export const Dashboard = () => {
 
         setLoading(prev => ({ ...prev, [widget.id]: true }));
         try {
-            const response = await axios.post('http://127.0.0.1:8000/execute', {
+            const response = await axios.post(`${API_BASE_URL}/execute`, {
                 sql: widget.sql,
                 connection_uri: widget.connectionUri // Use stored URI for execution
             });
@@ -61,13 +57,23 @@ export const Dashboard = () => {
                 const dataset = response.data.datasets[0];
                 setWidgets(prev => prev.map(w =>
                     w.id === widget.id
-                        ? { ...w, data: dataset.data, lastUpdated: new Date().toISOString() }
+                        ? { ...w, data: dataset.data, error: null, lastUpdated: new Date().toISOString() }
                         : w
                 ));
                 if (!silent) toast.success('Widget data refreshed');
+            } else {
+                throw new Error(response.data.error_message || 'Query failed');
             }
         } catch (error) {
             console.error(`Failed to refresh widget ${widget.id}`, error);
+            const errorMsg = error.response?.data?.error_message || error.message || 'Failed to fetch data';
+
+            setWidgets(prev => prev.map(w =>
+                w.id === widget.id
+                    ? { ...w, error: errorMsg, data: null, lastUpdated: new Date().toISOString() }
+                    : w
+            ));
+
             if (!silent) toast.error('Failed to refresh widget data');
         } finally {
             setLoading(prev => ({ ...prev, [widget.id]: false }));
@@ -147,6 +153,20 @@ export const Dashboard = () => {
                                     {loading[widget.id] && !widget.data ? (
                                         <div className="h-full flex items-center justify-center text-zinc-400 text-sm">
                                             Loading data...
+                                        </div>
+                                    ) : widget.error ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-red-500 text-sm gap-2 p-4 text-center">
+                                            <AlertCircle size={24} className="opacity-50" />
+                                            <p className="font-medium">Error loading data</p>
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 p-2 rounded max-w-full break-all font-mono">
+                                                {widget.error}
+                                            </p>
+                                            <button
+                                                onClick={() => refreshWidgetData(widget)}
+                                                className="text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-medium hover:underline transition-colors mt-2"
+                                            >
+                                                Retry
+                                            </button>
                                         </div>
                                     ) : !widget.data || widget.data.length === 0 ? (
                                         <div className="h-full flex flex-col items-center justify-center text-zinc-400 text-sm gap-2">

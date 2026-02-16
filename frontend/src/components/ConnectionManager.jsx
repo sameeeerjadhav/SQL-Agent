@@ -210,6 +210,17 @@ export const ConnectionManager = ({ isOpen, onClose, onConnectionChanged }) => {
 
                                 {/* Form */}
                                 <div className="space-y-4">
+                                    {/* Web Deployment Warning */}
+                                    {window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && (
+                                        <div className="p-3 rounded-xl bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/20 flex gap-3">
+                                            <AlertCircle className="shrink-0 text-orange-600 dark:text-orange-400" size={20} />
+                                            <div className="text-xs text-orange-800 dark:text-orange-200">
+                                                <span className="font-bold block mb-1">Web Limitation</span>
+                                                You are on the web version. You cannot connect to <code className="bg-orange-100 dark:bg-orange-500/30 px-1 rounded">localhost</code> databases. Please use a cloud database (e.g., Supabase, Neon) or run the app locally.
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div>
                                         <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1.5">Database Type</label>
                                         <div className="grid grid-cols-2 gap-3">
