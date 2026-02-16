@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, User, Sparkles, Loader2, Copy, Check, Plus, MessageSquare, Trash2, Edit2, Menu, X, MoreHorizontal, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Send, User, Bot, Loader2, Copy, Check, Plus, MessageSquare, Trash2, Edit2, Menu, X, MoreHorizontal, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import clsx from 'clsx';
 import { DataVisualizer } from './DataVisualizer';
 import toast from 'react-hot-toast';
@@ -205,7 +205,7 @@ export const ChatInterface = ({
                         {messages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-zinc-400 opacity-50 space-y-4">
                                 <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                                    <Sparkles size={32} />
+                                    <Bot size={32} />
                                 </div>
                                 <p>Start a new conversation...</p>
                             </div>
@@ -222,13 +222,11 @@ export const ChatInterface = ({
                                     )}
                                 >
                                     {/* Avatar */}
-                                    <div className={clsx(
-                                        "w-8 h-8 rounded flex items-center justify-center shrink-0 border shadow-sm transition-colors",
-                                        msg.role === 'user'
-                                            ? "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400"
-                                            : "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-100 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
-                                    )}>
-                                        {msg.role === 'user' ? <User size={14} /> : <Sparkles size={14} />}
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${msg.role === 'user'
+                                        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                        : 'bg-indigo-500 text-white'
+                                        }`}>
+                                        {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                                     </div>
 
                                     {/* Message Content */}
