@@ -17,8 +17,8 @@ export const Dashboard = () => {
             try {
                 const parsed = JSON.parse(saved);
                 setWidgets(parsed);
-                // Refresh data for all widgets
-                parsed.forEach(w => refreshWidgetData(w));
+                // Refresh data for all widgets silently
+                parsed.forEach(w => refreshWidgetData(w, true));
             } catch (e) {
                 console.error("Failed to parse pinned widgets", e);
             }
@@ -48,7 +48,7 @@ export const Dashboard = () => {
         return widgetUri === currentUri;
     });
 
-    const refreshWidgetData = async (widget) => {
+    const refreshWidgetData = async (widget, silent = false) => {
         if (!widget.sql) return;
 
         setLoading(prev => ({ ...prev, [widget.id]: true }));
@@ -64,11 +64,11 @@ export const Dashboard = () => {
                         ? { ...w, data: dataset.data, lastUpdated: new Date().toISOString() }
                         : w
                 ));
-                toast.success('Widget data refreshed');
+                if (!silent) toast.success('Widget data refreshed');
             }
         } catch (error) {
             console.error(`Failed to refresh widget ${widget.id}`, error);
-            toast.error('Failed to refresh widget data');
+            if (!silent) toast.error('Failed to refresh widget data');
         } finally {
             setLoading(prev => ({ ...prev, [widget.id]: false }));
         }
