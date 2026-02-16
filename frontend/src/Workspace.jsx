@@ -30,43 +30,65 @@ export const Workspace = () => {
     }, [navigate]);
 
     // --- Chat Session Management ---
-    const [sessions, setSessions] = useState(() => {
-        const saved = localStorage.getItem('chat_sessions');
-        return saved ? JSON.parse(saved) : [{ id: 1, name: 'New Chat', timestamp: Date.now() }];
-    });
+    const [sessions, setSessions] = useState([]);
+    const [currentSessionId, setCurrentSessionId] = useState(null);
 
-    const [currentSessionId, setCurrentSessionId] = useState(() => {
-        const saved = localStorage.getItem('current_session_id');
-        return saved ? Number(saved) : 1;
-    });
+    // Load Sessions and Current ID for User
+    useEffect(() => {
+        if (!user.email) return;
+
+        // Load Sessions
+        const savedSessions = localStorage.getItem(`chat_sessions_${user.email}`);
+        if (savedSessions) {
+            setSessions(JSON.parse(savedSessions));
+        } else {
+            setSessions([{ id: 1, name: 'New Chat', timestamp: Date.now() }]);
+        }
+
+        // Load Current Session ID
+        const savedSessionId = localStorage.getItem(`current_session_id_${user.email}`);
+        if (savedSessionId) {
+            setCurrentSessionId(Number(savedSessionId));
+        } else {
+            setCurrentSessionId(1);
+        }
+    }, [user.email]);
 
     // Save sessions and current ID
+    // Save sessions
     useEffect(() => {
-        localStorage.setItem('chat_sessions', JSON.stringify(sessions));
-    }, [sessions]);
+        if (user.email && sessions.length > 0) {
+            localStorage.setItem(`chat_sessions_${user.email}`, JSON.stringify(sessions));
+        }
+    }, [sessions, user.email]);
 
+    // Save current session ID
     useEffect(() => {
-        localStorage.setItem('current_session_id', currentSessionId);
-    }, [currentSessionId]);
+        if (user.email && currentSessionId) {
+            localStorage.setItem(`current_session_id_${user.email}`, currentSessionId);
+        }
+    }, [currentSessionId, user.email]);
 
     // Load messages for current session
     const [messages, setMessages] = useState([]);
 
     useEffect(() => {
-        const saved = localStorage.getItem(`chat_messages_${currentSessionId}`);
+        if (!user.email || !currentSessionId) return;
+
+        const saved = localStorage.getItem(`chat_messages_${user.email}_${currentSessionId}`);
         if (saved) {
             setMessages(JSON.parse(saved));
         } else {
             setMessages([{ role: 'assistant', content: 'Hello! I am your SQL Agent. Ask me anything about your database.' }]);
         }
-    }, [currentSessionId]);
+    }, [currentSessionId, user.email]);
 
     // Save messages when they change
     useEffect(() => {
-        if (messages.length > 0) {
-            localStorage.setItem(`chat_messages_${currentSessionId}`, JSON.stringify(messages));
+        if (user.email && currentSessionId && messages.length > 0) {
+            localStorage.setItem(`chat_messages_${user.email}_${currentSessionId}`, JSON.stringify(messages));
         }
-    }, [messages, currentSessionId]);
+    }, [messages, currentSessionId, user.email]);
 
 
     const handleNewChat = () => {
@@ -79,7 +101,9 @@ export const Workspace = () => {
 
     const handleDeleteChat = (id) => {
         const newSessions = sessions.filter(s => s.id !== id);
-        localStorage.removeItem(`chat_messages_${id}`);
+        if (user.email) {
+            localStorage.removeItem(`chat_messages_${user.email}_${id}`);
+        }
 
         if (newSessions.length === 0) {
             // If deleting last session, create a fresh one
@@ -118,10 +142,15 @@ export const Workspace = () => {
     // Auto-rename chat based on first user message if prompt is short? 
     // Or maybe just let user rename. Let's keep it simple for now.
 
-    const [queryHistory, setQueryHistory] = useState(() => {
-        const saved = localStorage.getItem('query_history');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [queryHistory, setQueryHistory] = useState([]);
+
+    useEffect(() => {
+        if (!user.email) return;
+        const saved = localStorage.getItem(`query_history_${user.email}`);
+        if (saved) {
+            setQueryHistory(JSON.parse(saved));
+        }
+    }, [user.email]);
 
     const [isLoading, setIsLoading] = useState(false);
     const [schema, setSchema] = useState([]);
@@ -243,8 +272,10 @@ export const Workspace = () => {
     // NOTE: Old message persistence removed in favor of session-based persistence above
 
     useEffect(() => {
-        localStorage.setItem('query_history', JSON.stringify(queryHistory));
-    }, [queryHistory]);
+        if (user.email) {
+            localStorage.setItem(`query_history_${user.email}`, JSON.stringify(queryHistory));
+        }
+    }, [queryHistory, user.email]);
 
     // Initial fetch handled by user email effect
 

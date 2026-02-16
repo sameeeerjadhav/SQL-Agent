@@ -277,7 +277,7 @@ export const Layout = ({ children, activeTab, onTabChange, currentDbName }) => {
       <ConnectionManager
         isOpen={showConnectionManager}
         onClose={() => setShowConnectionManager(false)}
-        onConnectionChanged={() => window.dispatchEvent(new Event('dbConnectionChanged'))}
+
       />
     </div>
   );

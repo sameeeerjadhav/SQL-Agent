@@ -1,12 +1,18 @@
 import uvicorn
 import os
-import sqlite3
 import hashlib
 import uuid
+import time
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy import create_engine, text, inspect
+from dotenv import load_dotenv
+
+# Load env vars
+load_dotenv()
+
 try:
     from .agent import run_sql_agent
 except ImportError:
@@ -16,51 +22,77 @@ except ImportError:
 app = FastAPI(title="AI SQL Workbench API")
 
 # 2. Configure CORS
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:3000",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allow all for dev simplicity
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 3. Database Setup
-SYSTEM_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'inventory.db')
-USERS_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
+# 3. Database Setup (Supabase / Postgres)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    print("WARNING: DATABASE_URL not found in .env. Falling back to in-memory SQLite (Data will be lost).")
+    DATABASE_URL = "sqlite:///:memory:"
+
+# Create main engine for User Management
+engine = create_engine(DATABASE_URL)
 
 def get_user_db_path(user_email: str = None) -> str:
-    if not user_email or user_email == 'sameerpjadhav12@gmail.com':
-        return SYSTEM_DB_PATH
+    """
+    Returns the Supabase Connection URI with a search_path set to the user's schema.
+    This effectively isolates their "Sandbox" to their own schema.
+    """
+    if not user_email:
+        # Default/Public schema for guests? Or restrict? 
+        # For now, let's just use public or a temp setup.
+        return DATABASE_URL
+    
+    # Create a safe schema name from the email
     safe_email = "".join([c for c in user_email if c.isalnum()])
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), f"user_{safe_email}.db")
+    schema_name = f"user_{safe_email}"
+    
+    # Append options to set search_path
+    if "postgresql" in DATABASE_URL:
+        # SQLAlchemy supports query params for connection args
+        # But specifically for psycopg2, we can pass options via the URI or connect_args.
+        # simpler way for the Agent (which uses SQLDatabase.from_uri) is to put it in the URI?
+        # Actually, SQLDatabase might not parse complex options easily.
+        # BETTER APPROACH: The Agent manually sets the schema on connect?
+        # OR: We just pass the schema name to the agent and let it handle "SET search_path".
+        # BUT: To keep `agent.py` generic, let's try to encode it in URI if possible.
+        # Postgres URI format: postgresql://user:pass@host/db?options=-csearch_path%3Dschema
+        
+        separator = "&" if "?" in DATABASE_URL else "?"
+        return f"{DATABASE_URL}{separator}options=-csearch_path%3D{schema_name}"
+        
+    return DATABASE_URL
 
 def init_users_db():
-    conn = sqlite3.connect(USERS_DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            email TEXT UNIQUE,
-            password_hash TEXT,
-            name TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    """
+    Initialize the 'users' table in the 'public' schema.
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS public.users (
+                    id TEXT PRIMARY KEY,
+                    email TEXT UNIQUE,
+                    password_hash TEXT,
+                    name TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            conn.commit()
+            print("INFO: 'users' table initialized in public schema.")
+    except Exception as e:
+        print(f"ERROR: Failed to init users db: {e}")
 
 # Initialize on startup
 init_users_db()
 
-# 4. Data Models
+# 4. Data Models (Unchanged)
 class QueryRequest(BaseModel):
     prompt: str
     history: list[dict] = []
@@ -90,110 +122,95 @@ class UserLogin(BaseModel):
 # 5. Auth Routes
 @app.post("/auth/register")
 def register_user(user: UserRegister):
-    conn = sqlite3.connect(USERS_DB_PATH)
-    cursor = conn.cursor()
-    
-    # Check if exists
-    cursor.execute("SELECT email FROM users WHERE email = ?", (user.email,))
-    if cursor.fetchone():
-        conn.close()
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Hash password (simple hash for demo)
+    # Hash password
     pwd_hash = hashlib.sha256(user.password.encode()).hexdigest()
     user_id = str(uuid.uuid4())
     
     try:
-        cursor.execute(
-            "INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)",
-            (user_id, user.email, pwd_hash, user.name)
-        )
-        conn.commit()
+        with engine.connect() as conn:
+            # 1. Check existing
+            result = conn.execute(text("SELECT email FROM public.users WHERE email = :email"), {"email": user.email})
+            if result.fetchone():
+                raise HTTPException(status_code=400, detail="Email already registered")
+            
+            # 2. Create User
+            conn.execute(
+                text("INSERT INTO public.users (id, email, password_hash, name) VALUES (:id, :email, :pwd, :name)"),
+                {"id": user_id, "email": user.email, "pwd": pwd_hash, "name": user.name}
+            )
+            
+            # 3. Create User Sandbox SCHEMA
+            safe_email = "".join([c for c in user.email if c.isalnum()])
+            schema_name = f"user_{safe_email}"
+            conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"'))
+            
+            conn.commit()
+            
+    except HTTPException:
+        raise
     except Exception as e:
-        conn.close()
         raise HTTPException(status_code=500, detail=str(e))
         
-    conn.close()
     return {"status": "success", "message": "User registered successfully"}
 
 @app.post("/auth/login")
 def login_user(user: UserLogin):
-    conn = sqlite3.connect(USERS_DB_PATH)
-    cursor = conn.cursor()
-    
     pwd_hash = hashlib.sha256(user.password.encode()).hexdigest()
     
-    cursor.execute(
-        "SELECT id, name, email FROM users WHERE email = ? AND password_hash = ?", 
-        (user.email, pwd_hash)
-    )
-    row = cursor.fetchone()
-    conn.close()
-    
-    if not row:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-        
-    return {
-        "status": "success",
-        "token": str(uuid.uuid4()), # Mock token
-        "user": {
-            "id": row[0],
-            "name": row[1],
-            "email": row[2]
-        }
-    }
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT id, name, email FROM public.users WHERE email = :email AND password_hash = :pwd"),
+                {"email": user.email, "pwd": pwd_hash}
+            )
+            row = result.fetchone()
+            
+            if not row:
+                raise HTTPException(status_code=401, detail="Invalid credentials")
+            
+            return {
+                "status": "success",
+                "token": str(uuid.uuid4()), # Mock token
+                "user": {
+                    "id": row[0],
+                    "name": row[1],
+                    "email": row[2]
+                }
+            }
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 6. API Routes
 @app.get("/health")
 def health_check(user_email: Optional[str] = None, connection_uri: Optional[str] = None):
-    import time
-    from sqlalchemy import create_engine, inspect
-    
     # Determine DB Source
-    db_target = SYSTEM_DB_PATH
-    is_sqlite = True
+    db_target = get_user_db_path(user_email)
     
     if connection_uri:
         db_target = connection_uri
-        is_sqlite = False
-    elif user_email:
-        db_target = get_user_db_path(user_email)
-        is_sqlite = True
-    
-    # Check DB Size (only if local file)
-    db_size = 0
-    if is_sqlite and os.path.exists(db_target):
-        try:
-            db_size = os.path.getsize(db_target)
-        except: 
-            pass
-            
-    # Check Table Count
-    table_count = 0
+
+    # Check Connectivity
     try:
-        if is_sqlite:
-            if os.path.exists(db_target):
-                conn = sqlite3.connect(db_target)
-                cursor = conn.cursor()
-                cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table';")
-                table_count = cursor.fetchone()[0]
-                conn.close()
-        else:
-            # External DB
-            engine = create_engine(db_target)
-            inspector = inspect(engine)
-            table_count = len(inspector.get_table_names())
-            
+        temp_engine = create_engine(db_target)
+        inspector = inspect(temp_engine)
+        table_names = inspector.get_table_names() # This respects search_path for Postgres!
+        table_count = len(table_names)
+        status_msg = "Datalk Backend & Database Ready"
     except Exception as e:
-        print(f"Health check DB error: {e}")
-        table_count = -1 # Indicate error
+        print(f"Health Check Error: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "timestamp": time.time()
+        }
 
     return {
         "status": "online",
-        "message": "Datalk Backend is Ready",
-        "system_db": str(db_target),
-        "db_size_bytes": db_size,
+        "message": status_msg,
+        "db_url_masked": db_target.split("@")[-1] if "@" in db_target else "sqlite",
         "table_count": table_count,
+        "tables": table_names, # Connection test
         "timestamp": time.time()
     }
 
@@ -201,73 +218,34 @@ def health_check(user_email: Optional[str] = None, connection_uri: Optional[str]
 def get_schema(request: SchemaRequest):
     """
     Fetch tables for the specific user or external DB.
-    If table_name is provided, returns columns for that table.
     """
     try:
-        from sqlalchemy import create_engine, inspect
-        
         # Determine DB Source
         if request.connection_uri:
-             db_target = request.connection_uri
-             is_sqlite_file = False
+            db_target = request.connection_uri
         else:
             db_target = get_user_db_path(request.user_email)
-            is_sqlite_file = True
 
-        if is_sqlite_file:
-             import sqlite3
-             conn = sqlite3.connect(db_target)
-             cursor = conn.cursor()
+        engine = create_engine(db_target)
+        inspector = inspect(engine)
              
-             if request.table_name:
-                 # Get columns for specific table (SQLite)
-                 cursor.execute(f"PRAGMA table_info({request.table_name})")
-                 columns = []
-                 for row in cursor.fetchall():
-                     columns.append({
-                         "name": row[1],
-                         "type": row[2],
-                         "pk": row[5] > 0
-                     })
-                 conn.close()
-                 return {"columns": columns}
-             else:
-                 # Get tables
-                 cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-                 tables = [row[0] for row in cursor.fetchall()]
-                 conn.close()
-                 return {"tables": tables}
-
+        if request.table_name:
+            # Generic column fetch
+            cols_info = inspector.get_columns(request.table_name)
+            columns = []
+            for col in cols_info:
+                columns.append({
+                    "name": col['name'],
+                    "type": str(col['type']),
+                    "pk": col.get('primary_key', False)
+                })
+            return {"columns": columns}
         else:
-             # External DB or generic URI
-             engine = create_engine(db_target)
-             inspector = inspect(engine)
-             
-             if request.table_name:
-                 # Generic column fetch
-                 cols_info = inspector.get_columns(request.table_name)
-                 columns = []
-                 for col in cols_info:
-                     columns.append({
-                         "name": col['name'],
-                         "type": str(col['type']),
-                         "pk": col.get('primary_key', False)
-                     })
-                 return {"columns": columns}
-             else:
-                 tables = inspector.get_table_names()
-                 return {"tables": tables}
+            tables = inspector.get_table_names()
+            return {"tables": tables}
 
     except Exception as e:
         print(f"DEBUG: Schema fetch failed. Error: {str(e)}")
-        # Safe log of URI params if possible, to debug encoding
-        if request.connection_uri:
-             try:
-                 from sqlalchemy.engine.url import make_url
-                 u = make_url(request.connection_uri)
-                 print(f"DEBUG: Connection Attempt -> Driver: {u.drivername}, Host: {u.host}, Port: {u.port}, User: {u.username}, DB: {u.database}")
-             except:
-                 pass
         return {"error": str(e)}
 
 @app.post("/ask")
@@ -276,7 +254,7 @@ async def ask_ai(request: QueryRequest):
     
     # Determine DB Source
     if request.connection_uri:
-         db_target = request.connection_uri
+        db_target = request.connection_uri
     else:
         db_target = get_user_db_path(request.user_email)
         
@@ -289,9 +267,10 @@ async def execute_sql(request: ExecuteRequest):
         from .agent import execute_sql_commands
     except ImportError:
         from agent import execute_sql_commands
+        
     # Determine DB Source
     if request.connection_uri:
-         db_target = request.connection_uri
+        db_target = request.connection_uri
     else:
         db_target = get_user_db_path(request.user_email)
     
@@ -308,9 +287,10 @@ async def execute_sql(request: ExecuteRequest):
         }
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run(
         "backend.main:app", 
         host="0.0.0.0", 
-        port=8000, 
+        port=port, 
         reload=True
     )

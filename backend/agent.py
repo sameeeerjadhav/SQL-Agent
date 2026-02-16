@@ -110,11 +110,26 @@ def execute_sql_commands(sql_command: str, db_path: str):
         
     return datasets
 
+# Simple in-memory cache: {db_path: {'timestamp': time, 'schema': str}}
+SCHEMA_CACHE = {}
+CACHE_TTL = 300  # 5 minutes
+
 def get_schema_with_samples(db_path):
     """
     Fetches schema info AND 3 sample rows for each table to give the AI context.
     Uses generic SQLAlchemy via LangChain utilities or direct inspection.
+    Cached for performance.
     """
+    import time
+    
+    # Check Cache
+    if db_path in SCHEMA_CACHE:
+        entry = SCHEMA_CACHE[db_path]
+        if time.time() - entry['timestamp'] < CACHE_TTL:
+            print(f"DEBUG: Using cached schema for {db_path}")
+            return entry['schema']
+    
+    print(f"DEBUG: Cache miss/expired. Fetching schema for {db_path}...")
     db_uri = get_db_uri(db_path)
     
     try:
@@ -125,23 +140,13 @@ def get_schema_with_samples(db_path):
         
         for table in table_names:
             # Get table info (DDL/Columns)
-            # db.get_table_info([table]) returns the CREATE TABLE string usually, which is good.
-            # But let's construct it manually to match previous format for consistency if possible, 
-            # or just use LangChain's format which is robust.
-            
-            # LangChain's get_table_info includes columns.
             table_info = db.get_table_info([table])
             
             # Get samples
-            samples = []
+            samples_str = ""
             try:
-                # db.run returns string, but we want structured or raw
-                # generic limit query
+                # Limit samples to avoid huge prompt context
                 res = db.run(f"SELECT * FROM {table} LIMIT 3")
-                # res is a string representation in generic SQLDatabase
-                # For better formatting, let's use the engine directly from db?
-                # db._execute ? 
-                # Let's trust generic run string output for now, it's usually Eval-repr.
                 samples_str = res
             except Exception:
                 samples_str = "Could not fetch samples."
@@ -149,7 +154,15 @@ def get_schema_with_samples(db_path):
             schema_str += f"{table_info}\nSample Data:\n{samples_str}\n"
             schema_str += "------------------------------------------------\n"
             
-        return schema_str if schema_str else "No tables found."
+        final_schema = schema_str if schema_str else "No tables found."
+        
+        # Update Cache
+        SCHEMA_CACHE[db_path] = {
+            'timestamp': time.time(),
+            'schema': final_schema
+        }
+        
+        return final_schema
     except Exception as e:
         return f"Error fetching schema: {str(e)}"
 
