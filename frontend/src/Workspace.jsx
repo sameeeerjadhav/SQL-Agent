@@ -144,6 +144,7 @@ export const Workspace = () => {
         const handleDbChange = (e) => {
             // Handle CustomEvent details
             const detail = e.detail;
+            console.log("DB Connection Changed Event:", detail);
             const newUri = detail ? detail.uri : null;
 
             setConnectionUri(newUri);
@@ -195,7 +196,11 @@ export const Workspace = () => {
 
     // Re-fetch schema when connectionUri changes
     useEffect(() => {
-        if (user.email) fetchSchema(connectionUri);
+        if (user.email) {
+            console.log("Connection URI changed, fetching schema for:", connectionUri || "Sandbox");
+            setTableData([]); // Clear old table data on context switch
+            fetchSchema(connectionUri);
+        }
     }, [connectionUri, user.email]);
 
     const fetchSchema = async (uri = connectionUri) => {
@@ -210,6 +215,7 @@ export const Workspace = () => {
                 console.error("Schema sync error:", res.data.error);
                 setSchema([]);
             } else {
+                console.log("Schema fetched:", res.data.tables);
                 setSchema(res.data.tables || []);
             }
         } catch (err) {
