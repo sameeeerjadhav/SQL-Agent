@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Loader2, ArrowLeft, MessageSquare } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../config';
 
 const AuthLayout = ({ children, title, subtitle }) => (
     <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-white flex items-center justify-center p-6 relative overflow-hidden font-sans selection:bg-zinc-900/10 dark:selection:bg-white/20">
@@ -48,7 +49,7 @@ export const LoginPage = () => {
         setLoading(true);
         setError('');
         try {
-            const res = await axios.post('http://127.0.0.1:8000/auth/login', formData);
+            const res = await axios.post(`${API_BASE_URL}/auth/login`, formData);
             if (res.data.status === 'success') {
                 localStorage.setItem('user_token', res.data.token);
                 localStorage.setItem('user_info', JSON.stringify(res.data.user));
@@ -124,7 +125,7 @@ export const RegisterPage = () => {
         setLoading(true);
         setError('');
         try {
-            const res = await axios.post('http://127.0.0.1:8000/auth/register', formData);
+            const res = await axios.post(`${API_BASE_URL}/auth/register`, formData);
             if (res.data.status === 'success') {
                 toast.success('Account created successfully!');
                 navigate('/login');
