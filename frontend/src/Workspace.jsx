@@ -412,7 +412,7 @@ export const Workspace = () => {
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'editor' && <SqlEditor />}
             {activeTab === 'schema' && (
-                <div className="p-6">
+                <div className="p-6 h-full overflow-hidden flex flex-col">
                     <SchemaViewer
                         schema={schema}
                         tableData={tableData}
