@@ -99,7 +99,20 @@ export const Workspace = () => {
     };
 
     const handleSelectChat = (id) => {
-        setCurrentSessionId(id);
+        const session = sessions.find(s => s.id === id);
+        if (session) {
+            setCurrentSessionId(id);
+            // Switch Context
+            const uri = session.connectionUri || null;
+            setConnectionUri(uri);
+            if (uri) {
+                localStorage.setItem('db_connection_uri', uri);
+            } else {
+                localStorage.removeItem('db_connection_uri');
+            }
+            // Update DB Name for display
+            setDbName(session.dbName || (uri ? 'External DB' : null));
+        }
     };
 
     // Auto-rename chat based on first user message if prompt is short? 
@@ -114,27 +127,84 @@ export const Workspace = () => {
     const [schema, setSchema] = useState([]);
     const [tableData, setTableData] = useState([]);
     const [connectionUri, setConnectionUri] = useState(localStorage.getItem('db_connection_uri'));
+    const [dbName, setDbName] = useState(null);
+
+    // Initial load of DB Name from saved config if available
+    useEffect(() => {
+        const savedConfig = localStorage.getItem('db_connection_config');
+        if (savedConfig && connectionUri) {
+            try {
+                const config = JSON.parse(savedConfig);
+                setDbName(config.database);
+            } catch (e) { /* ignore */ }
+        }
+    }, []);
 
     useEffect(() => {
-        const handleDbChange = () => {
-            setConnectionUri(localStorage.getItem('db_connection_uri'));
+        const handleDbChange = (e) => {
+            // Handle CustomEvent details
+            const detail = e.detail;
+            const newUri = detail ? detail.uri : null;
+
+            setConnectionUri(newUri);
+
+            if (detail) {
+                // It's a specific DB Connection
+                setDbName(detail.database);
+
+                // Create a dedicated session for this DB connection
+                const newId = Date.now();
+                const sessionName = `${detail.database} (${detail.type})`;
+
+                const newSession = {
+                    id: newId,
+                    name: sessionName,
+                    timestamp: Date.now(),
+                    connectionUri: newUri,
+                    dbName: detail.database,
+                    dbType: detail.type
+                };
+
+                setSessions(prev => [newSession, ...prev]);
+                setCurrentSessionId(newId);
+            } else {
+                // Switched to Sandbox / Disconnected
+                setDbName(null);
+                // Optionally switch to a "Sandbox" session if one exists, or create one
+                const sandboxSession = sessions.find(s => !s.connectionUri);
+                if (sandboxSession) {
+                    setCurrentSessionId(sandboxSession.id);
+                } else {
+                    const newId = Date.now();
+                    const newSession = {
+                        id: newId,
+                        name: 'Sandbox (SQLite)',
+                        timestamp: Date.now(),
+                        connectionUri: null, // Null implies Sandbox
+                        dbName: 'Sandbox',
+                        dbType: 'sqlite'
+                    };
+                    setSessions(prev => [newSession, ...prev]);
+                    setCurrentSessionId(newId);
+                }
+            }
         };
         window.addEventListener('dbConnectionChanged', handleDbChange);
         return () => window.removeEventListener('dbConnectionChanged', handleDbChange);
-    }, []);
+    }, [sessions]);
 
     // Re-fetch schema when connectionUri changes
     useEffect(() => {
-        if (user.email) fetchSchema();
-    }, [connectionUri]);
+        if (user.email) fetchSchema(connectionUri);
+    }, [connectionUri, user.email]);
 
-    const fetchSchema = async () => {
+    const fetchSchema = async (uri = connectionUri) => {
         if (!user.email) return;
         try {
-            console.log("Fetching schema for:", user.email, connectionUri ? "(External DB)" : "(Local SQLite)");
+            console.log("Fetching schema for:", user.email, uri ? "(External DB)" : "(Local SQLite)");
             const res = await axios.post(`${API_BASE_URL}/schema`, {
                 user_email: user.email,
-                connection_uri: connectionUri
+                connection_uri: uri
             });
             if (res.data.error) {
                 console.error("Schema sync error:", res.data.error);
@@ -146,6 +216,7 @@ export const Workspace = () => {
             console.error("Failed to fetch schema", err);
         }
     };
+
 
     useEffect(() => {
         if (user.email) {
@@ -323,7 +394,7 @@ export const Workspace = () => {
     };
 
     return (
-        <Layout activeTab={activeTab} onTabChange={setActiveTab}>
+        <Layout activeTab={activeTab} onTabChange={setActiveTab} currentDbName={dbName}>
             {activeTab === 'chat' && (
                 <ChatInterface
                     messages={messages}

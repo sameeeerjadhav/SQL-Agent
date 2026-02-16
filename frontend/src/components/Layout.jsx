@@ -28,7 +28,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed }) => (
   </button>
 );
 
-export const Layout = ({ children, activeTab, onTabChange }) => {
+export const Layout = ({ children, activeTab, onTabChange, currentDbName }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showConnectionManager, setShowConnectionManager] = useState(false);
@@ -245,6 +245,23 @@ export const Layout = ({ children, activeTab, onTabChange }) => {
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800 hidden sm:block" />
+
+            {/* DB Connection Status Badge */}
+            <div className={clsx(
+              "flex items-center gap-2 px-2 py-1 rounded-full border",
+              currentDbName
+                ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-300"
+                : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400"
+            )}>
+              <div className={clsx(
+                "h-1.5 w-1.5 rounded-full",
+                currentDbName ? "bg-indigo-500" : "bg-zinc-400"
+              )} />
+              <span className="text-[10px] font-medium tracking-wide hidden sm:inline uppercase">
+                {currentDbName ? `DB: ${currentDbName}` : "SANDBOX"}
+              </span>
+            </div>
+
             <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
               <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[10px] font-medium text-emerald-500 tracking-wide hidden sm:inline">ONLINE</span>

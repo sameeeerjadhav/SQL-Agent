@@ -81,8 +81,20 @@ export const ConnectionManager = ({ isOpen, onClose, onConnectionChanged }) => {
         localStorage.setItem('db_connection_uri', uri);
         localStorage.setItem('db_connection_config', JSON.stringify(config));
         setActiveUri(uri);
+
+        // Dispatch CustomEvent with details
+        const event = new CustomEvent('dbConnectionChanged', {
+            detail: {
+                uri,
+                type: config.type,
+                database: config.database,
+                host: config.host
+            }
+        });
+        window.dispatchEvent(event);
+
         onConnectionChanged?.(uri);
-        toast.success('Database connection saved!');
+        toast.success(`Connected to ${config.database}`);
         onClose();
     };
 
@@ -90,6 +102,12 @@ export const ConnectionManager = ({ isOpen, onClose, onConnectionChanged }) => {
         localStorage.removeItem('db_connection_uri');
         // We might keep the config for future convenience
         setActiveUri(null);
+
+        const event = new CustomEvent('dbConnectionChanged', {
+            detail: null // No active connection
+        });
+        window.dispatchEvent(event);
+
         onConnectionChanged?.(null);
         toast.success('Disconnected from database');
         onClose();
