@@ -148,6 +148,16 @@ export const Dashboard = () => {
                                         <div className="h-full flex items-center justify-center text-zinc-400 text-sm">
                                             Loading data...
                                         </div>
+                                    ) : !widget.data || widget.data.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-zinc-400 text-sm gap-2">
+                                            <p>No data available</p>
+                                            <button
+                                                onClick={() => refreshWidgetData(widget)}
+                                                className="text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs font-medium hover:underline transition-colors"
+                                            >
+                                                Retry
+                                            </button>
+                                        </div>
                                     ) : (
                                         <DataVisualizer
                                             data={widget.data}
