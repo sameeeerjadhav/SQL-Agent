@@ -4,7 +4,7 @@
 
 **AI SQL Workbench** is a modern, full-stack application that allows users to interact with SQL databases using natural language. Powered by **Google Gemini AI**, it translates plain English questions into complex SQL queries, executes them securely, and visualizes the results instantly.
 
-![Dashboard Preview](frontend/public/logo.png) *Add a screenshot of your dashboard here*
+![Home Preview](frontend/public/image.png) 
 
 ---
 
