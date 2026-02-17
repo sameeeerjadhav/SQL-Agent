@@ -103,7 +103,7 @@ export const LandingPage = () => {
                         <span className="relative flex h-2 w-2">
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
-                        v2.0 Now Available with Safe Mode
+                        Also available with Safe Mode
                     </div>
                     <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-b from-zinc-900 via-zinc-600 to-zinc-900 dark:from-white dark:via-zinc-300 dark:to-zinc-500 bg-clip-text text-transparent pb-2 drop-shadow-sm">
                         Talk to your database <br /> like a human.
