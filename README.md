@@ -1,4 +1,4 @@
-# AI SQL Workbench (Datalk) 🤖📊
+# AI SQL Workbench (Datalk) 
 
 > Your intelligent SQL assistant. Chat with your database, visualize data, and manage schemas effortlessly.
 
