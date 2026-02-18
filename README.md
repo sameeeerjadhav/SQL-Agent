@@ -40,7 +40,7 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/ai-sql-agent.git
+git clone https://github.com/sameeeerjadhav/ai-sql-agent.git
 cd ai-sql-agent
 ```
 
