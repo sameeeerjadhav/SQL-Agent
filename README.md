@@ -96,7 +96,7 @@ This project is optimized for deployment on **Render**.
 1.  Connect GitHub repo to Render.
 2.  **Runtime**: Python 3
 3.  **Build Command**: `pip install -r requirements.txt`
-4.  **Start Command**: `gunicorn backend.main:app -k uvicorn.workers.UvicornWorker`
+4.  **Start Command**: `gunicorn backend.main:app -k uvicorn.workers.UvicornWorker --timeout 120`
 5.  **Environment Variables**: Add `DATABASE_URL`, `GOOGLE_API_KEY`, and `ALLOWED_ORIGINS`.
 
 ### Frontend (Static Site)

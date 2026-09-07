@@ -305,7 +305,7 @@ export const Workspace = () => {
                 safe_mode: localStorage.getItem('sql_safe_mode') === 'true',
                 user_email: user.email,
                 connection_uri: connectionUri
-            });
+            }, { timeout: 90000 });
             const aiResponse = res.data;
 
             if (aiResponse.status === 'success') {
@@ -368,10 +368,18 @@ export const Workspace = () => {
                 }
             }
         } catch (err) {
-            toast.error("Network Error: Could not reach the backend.");
+            let msg = "Network Error: Could not reach the backend.";
+            if (err.code === 'ECONNABORTED') {
+                msg = "The AI request timed out. The Render backend may still be waking up — try again.";
+            } else if (err.response?.status === 502 || err.response?.status === 503) {
+                msg = "Backend crashed while running the AI query (502). Check Render logs for sql-agent-ou62, and set gunicorn --timeout 120.";
+            } else if (err.response?.data?.detail || err.response?.data?.error_message) {
+                msg = err.response.data.detail || err.response.data.error_message;
+            }
+            toast.error(msg);
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: "Network Error: Could not reach the backend."
+                content: msg
             }]);
         }
         setIsLoading(false);

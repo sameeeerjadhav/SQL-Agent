@@ -37,7 +37,7 @@ if not DATABASE_URL:
     DATABASE_URL = "sqlite:///:memory:"
 
 # Create main engine for User Management
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 def get_user_db_path(user_email: str = None) -> str:
     """
@@ -249,16 +249,22 @@ def get_schema(request: SchemaRequest):
         return {"error": str(e)}
 
 @app.post("/ask")
-async def ask_ai(request: QueryRequest):
+def ask_ai(request: QueryRequest):
     print(f"DEBUG: main.py received /ask request. Query: {request.prompt}")
-    
-    # Determine DB Source
-    if request.connection_uri:
-        db_target = request.connection_uri
-    else:
-        db_target = get_user_db_path(request.user_email)
-        
-    return run_sql_agent(request.prompt, db_target, request.history, request.safe_mode)
+    try:
+        if request.connection_uri:
+            db_target = request.connection_uri
+        else:
+            db_target = get_user_db_path(request.user_email)
+
+        return run_sql_agent(request.prompt, db_target, request.history, request.safe_mode)
+    except Exception as e:
+        print(f"ERROR: /ask failed: {e}")
+        return {
+            "status": "error",
+            "error_message": str(e),
+            "sql": "N/A"
+        }
 
 @app.post("/execute")
 async def execute_sql(request: ExecuteRequest):

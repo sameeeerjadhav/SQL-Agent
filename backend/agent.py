@@ -6,7 +6,6 @@ import json
 import google.generativeai as genai
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text, inspect
-from langchain_community.utilities import SQLDatabase
 
 # Helper to normalize URI
 def get_db_uri(path_or_uri):
@@ -51,7 +50,7 @@ def execute_sql_commands(sql_command: str, db_path: str):
     Executes SQL using SQLAlchemy to support multiple dialects (SQLite, Postgres).
     """
     db_uri = get_db_uri(db_path)
-    engine = create_engine(db_uri)
+    engine = create_engine(db_uri, pool_pre_ping=True)
     datasets = []
     
     import sqlparse
@@ -107,6 +106,8 @@ def execute_sql_commands(sql_command: str, db_path: str):
              "data": [{"error": f"Connection/Engine Error: {str(e)}"}],
              "sql": "Global"
         })
+    finally:
+        engine.dispose()
         
     return datasets
 
@@ -131,29 +132,31 @@ def get_schema_with_samples(db_path):
     
     print(f"DEBUG: Cache miss/expired. Fetching schema for {db_path}...")
     db_uri = get_db_uri(db_path)
+    engine = create_engine(db_uri, pool_pre_ping=True)
     
     try:
-        db = SQLDatabase.from_uri(db_uri)
-        table_names = db.get_usable_table_names()
-        
+        inspector = inspect(engine)
+        table_names = inspector.get_table_names()
         schema_str = ""
-        
-        for table in table_names:
-            # Get table info (DDL/Columns)
-            table_info = db.get_table_info([table])
-            
-            # Get samples
-            samples_str = ""
-            try:
-                # Limit samples to avoid huge prompt context
-                res = db.run(f"SELECT * FROM {table} LIMIT 3")
-                samples_str = res
-            except Exception:
-                samples_str = "Could not fetch samples."
-                
-            schema_str += f"{table_info}\nSample Data:\n{samples_str}\n"
-            schema_str += "------------------------------------------------\n"
-            
+
+        with engine.connect() as conn:
+            for table in table_names:
+                cols_info = inspector.get_columns(table)
+                col_desc = ", ".join(
+                    f"{col['name']} {col['type']}" for col in cols_info
+                )
+                schema_str += f"Table {table} ({col_desc})\n"
+
+                try:
+                    quoted = table.replace('"', '""')
+                    df = pd.read_sql_query(text(f'SELECT * FROM "{quoted}" LIMIT 3'), conn)
+                    samples_str = df.to_csv(index=False)[:1500]
+                except Exception:
+                    samples_str = "Could not fetch samples."
+
+                schema_str += f"Sample Data:\n{samples_str}\n"
+                schema_str += "------------------------------------------------\n"
+
         final_schema = schema_str if schema_str else "No tables found."
         
         # Update Cache
@@ -165,6 +168,8 @@ def get_schema_with_samples(db_path):
         return final_schema
     except Exception as e:
         return f"Error fetching schema: {str(e)}"
+    finally:
+        engine.dispose()
 
 def run_sql_agent(user_query: str, db_path: str, history: list = [], safe_mode: bool = False):
     """
